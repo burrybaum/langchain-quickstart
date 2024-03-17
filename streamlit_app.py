@@ -1,18 +1,62 @@
 import streamlit as st
 from langchain.llms import OpenAI
-st.set_page_config(page_title="🦜🔗 Start app App")
-st.title('🦜🔗 Quickstart App')
 
-openai_api_key = st.sidebar.text_input('OpenAI API Key')
+st.set_page_config(page_title="DeepK PoC")
+st.title('DeepK')
 
-def generate_response(input_text):
-  llm = OpenAI(temperature=0.7, openai_api_key=openai_api_key)
-  st.info(llm(input_text))
+# Initialize session state for API key visibility
+if 'show_api_key_input' not in st.session_state:
+    st.session_state.show_api_key_input = True
 
-with st.form('my_form'):
-  text = st.text_area('Enter text:', 'pieces of advice for learning how to code?')
-  submitted = st.form_submit_button('Submit')
-  if not openai_api_key.startswith('sk-'):
-    st.warning('Please enter your OpenAI API key!', icon='⚠')
-  if submitted and openai_api_key.startswith('sk-'):
-    generate_response(text)
+# API Key Input Handling
+def toggle_api_key_input():
+    st.session_state.show_api_key_input = not st.session_state.show_api_key_input
+
+if st.session_state.show_api_key_input:
+    key_input = st.text_input('OpenAI API Key', key='api_key')
+    hide_button = st.button('Hide API Key Input', on_click=toggle_api_key_input)
+else:
+    show_button = st.button('Show API Key Input', on_click=toggle_api_key_input)
+
+# Sample Prompts and Button Click Handling
+sample_prompts = [
+    "(국가명)에서 (과목명)전공하고 싶은데 추천해줘",
+    "()학교 ()들어가려면 어떤걸 제일 많이 준비해야해?",
+    "()학교 ()학과 최대 장점에 대해서 알려줄 수 있어?",
+    "()학교 ()학교 고민중인데 실제 생활은 어때? 안비싸?"
+]
+
+def on_prompt_click(prompt_text):
+    st.session_state.selected_prompt = prompt_text
+
+if 'selected_prompt' not in st.session_state:
+    st.session_state.selected_prompt = "#대학(원) 준비 #국내대학 학과 추천 #해외대학 현실"  # Default prompt text
+
+col1, col2 = st.columns(2)
+with col1:
+    for i in [0, 2]:
+        st.button(sample_prompts[i], key=f"btn{i}", on_click=on_prompt_click, args=(sample_prompts[i],))
+with col2:
+    for i in [1, 3]:
+        st.button(sample_prompts[i], key=f"btn{i}", on_click=on_prompt_click, args=(sample_prompts[i],))
+
+# Form for user input and submission
+with st.form('my_form', clear_on_submit=False):
+    text = st.text_area('궁금한 점을 물어봐 주세요', value=st.session_state.selected_prompt, key='user_query')
+    submitted = st.form_submit_button('Submit')
+
+if submitted:
+    # Directly use the input from the text input field to ensure it's the latest value
+    openai_api_key = st.session_state.api_key
+    if not openai_api_key.startswith('sk-'):
+        st.warning('Please enter your OpenAI API key!', icon='⚠️')
+    else:
+        # Function to generate a response
+        def generate_response(input_text):
+            llm = OpenAI(temperature=0.7, openai_api_key=openai_api_key)
+            response = llm(input_text)  # Assuming this method correctly generates a response.
+            return response
+        
+        response = generate_response(text)
+        st.session_state['last_response'] = response
+        st.info(response)
